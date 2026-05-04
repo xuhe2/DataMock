@@ -11,11 +11,6 @@ const transformOptions: Array<{ label: string; value: TransformType }> = [
   { label: "Reference Based", value: "reference_based" },
 ];
 
-function numberValue(value: string, fallback: number): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
 function createDraftId(type: TransformType): string {
   return `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -60,7 +55,7 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
       <NumberInput
         label="factor"
         value={String(params.factor ?? 1)}
-        onChange={(value) => onChange({ factor: numberValue(value, 1) })}
+        onChange={(value) => onChange({ factor: value })}
       />
     );
   }
@@ -70,7 +65,7 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
       <NumberInput
         label="value"
         value={String(params.value ?? 0)}
-        onChange={(value) => onChange({ value: numberValue(value, 0) })}
+        onChange={(value) => onChange({ value })}
       />
     );
   }
@@ -84,7 +79,7 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
           onChange={(value) =>
             onChange({
               ...params,
-              strength: numberValue(value, 0),
+              strength: value,
             })
           }
         />
@@ -118,7 +113,7 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
           onChange={(value) =>
             onChange({
               ...params,
-              sigma: numberValue(value, 0),
+              sigma: value,
             })
           }
         />
@@ -129,7 +124,7 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
           onChange={(value) =>
             onChange({
               ...params,
-              seed: numberValue(value, 1),
+              seed: value,
             })
           }
         />
@@ -144,7 +139,7 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
         value={String(params.windowSize ?? 3)}
         step="1"
         min="1"
-        onChange={(value) => onChange({ windowSize: numberValue(value, 3) })}
+        onChange={(value) => onChange({ windowSize: value })}
       />
     );
   }
@@ -180,7 +175,7 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
           onChange={(value) =>
             onChange({
               ...params,
-              blend: numberValue(value, 0.5),
+              blend: value,
             })
           }
         />
@@ -190,7 +185,7 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
           onChange={(value) =>
             onChange({
               ...params,
-              amplitudeFactor: numberValue(value, 1),
+              amplitudeFactor: value,
             })
           }
         />
@@ -200,7 +195,7 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
           onChange={(value) =>
             onChange({
               ...params,
-              trendStrength: numberValue(value, 0),
+              trendStrength: value,
             })
           }
         />

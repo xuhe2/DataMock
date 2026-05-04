@@ -21,6 +21,45 @@ function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function normalizeParams(transform: Pick<Transform, "type" | "params">): Record<string, unknown> {
+  const params = transform.params;
+
+  if (transform.type === "scale") {
+    return { factor: asNumber(params.factor, 1) };
+  }
+
+  if (transform.type === "offset") {
+    return { value: asNumber(params.value, 0) };
+  }
+
+  if (transform.type === "trend") {
+    return {
+      strength: asNumber(params.strength, 0),
+      direction: normalizeDirection(params.direction),
+    };
+  }
+
+  if (transform.type === "noise") {
+    return {
+      sigma: Math.max(0, asNumber(params.sigma, 0)),
+      seed: Math.trunc(asNumber(params.seed, 1)),
+    };
+  }
+
+  if (transform.type === "smooth") {
+    return {
+      windowSize: Math.max(1, Math.trunc(asNumber(params.windowSize, 3))),
+    };
+  }
+
+  return {
+    referenceCurveId: String(params.referenceCurveId ?? ""),
+    blend: Math.min(1, Math.max(0, asNumber(params.blend, 0.5))),
+    amplitudeFactor: asNumber(params.amplitudeFactor, 1),
+    trendStrength: asNumber(params.trendStrength, 0),
+  };
+}
+
 function applyScale(y: number[], params: Record<string, unknown>): number[] {
   const factor = asNumber(params.factor, 1);
   return y.map((value) => value * factor);
@@ -121,7 +160,7 @@ function toTransform(sourceCurveId: string, draft: TransformDraft): Transform {
     id: draft.id,
     curveId: sourceCurveId,
     type: draft.type,
-    params: draft.params,
+    params: normalizeParams(draft),
   };
 }
 
