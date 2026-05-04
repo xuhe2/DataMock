@@ -38,3 +38,14 @@ export type TransformDraft = {
   type: TransformType;
   params: Record<string, any>;
 };
+
+export type DataMockProject = {
+  version: 1;
+  name: string;
+  curves: Curve[];
+  selectedCurveIds: string[];
+  activeCurveId?: string;
+  referenceCurveId?: string;
+  transformDrafts: TransformDraft[];
+  savedAt: string;
+};

@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import type { Curve } from "../types";
+import type { Curve, DataMockProject } from "../types";
 
 function parseXValue(value: unknown): number | string {
   const raw = String(value ?? "").trim();
@@ -40,13 +40,91 @@ function validateCurve(curve: unknown, index: number): Curve {
   };
 }
 
-export function parseJsonCurves(input: string): Curve[] {
+export function parseProject(input: string): DataMockProject {
   const parsed: unknown = JSON.parse(input);
-  if (!Array.isArray(parsed)) {
-    throw new Error("JSON 顶层必须是曲线数组");
+
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("项目文件不是有效对象");
   }
 
-  return parsed.map(validateCurve);
+  const project = parsed as Partial<DataMockProject>;
+  if (project.version !== 1) {
+    throw new Error("不支持的项目文件版本");
+  }
+
+  if (!Array.isArray(project.curves)) {
+    throw new Error("项目文件缺少 curves");
+  }
+
+  const curves = project.curves.map(validateCurve);
+  const selectedCurveIds = Array.isArray(project.selectedCurveIds)
+    ? project.selectedCurveIds.map(String)
+    : curves.map((curve) => curve.id);
+  const transformDrafts = Array.isArray(project.transformDrafts) ? project.transformDrafts : [];
+
+  return {
+    version: 1,
+    name: project.name || "Untitled Project",
+    curves,
+    selectedCurveIds,
+    activeCurveId: project.activeCurveId,
+    referenceCurveId: project.referenceCurveId,
+    transformDrafts,
+    savedAt: project.savedAt || new Date().toISOString(),
+  };
+}
+
+function parseNumberList(input: string, field: string): number[] {
+  const normalized = input.trim();
+  if (!normalized) {
+    throw new Error(`${field} 不能为空`);
+  }
+
+  let values: unknown;
+  if (normalized.startsWith("[")) {
+    values = JSON.parse(normalized);
+  } else {
+    values = normalized.split(/[\s,]+/).filter(Boolean);
+  }
+
+  if (!Array.isArray(values)) {
+    throw new Error(`${field} 必须是数组或数字列表`);
+  }
+
+  return values.map((value, index) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      throw new Error(`${field} 第 ${index + 1} 个值不是数字`);
+    }
+    return numeric;
+  });
+}
+
+export function parseArrayCurve(name: string, yInput: string, xInput?: string): Curve {
+  const y = parseNumberList(yInput, "y");
+  const x = xInput?.trim()
+    ? parseNumberList(xInput, "x")
+    : y.map((_, index) => index + 1);
+
+  if (x.length !== y.length) {
+    throw new Error("x 和 y 长度不一致");
+  }
+
+  const trimmedName = name.trim() || "Imported Array";
+  const id = trimmedName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "array_curve";
+
+  return {
+    id,
+    name: trimmedName,
+    x,
+    y,
+    meta: {
+      source: "array",
+    },
+  };
 }
 
 export function parseCsvCurves(input: string): Curve[] {

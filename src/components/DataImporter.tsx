@@ -1,35 +1,14 @@
-import { useMemo, useState } from "react";
-import { parseCsvCurves, parseJsonCurves } from "../core/parsers";
-import { demoCurves } from "../data/demoCurves";
+import { useState } from "react";
+import { parseArrayCurve, parseCsvCurves } from "../core/parsers";
 import { useCurveStore } from "../store/useCurveStore";
 
-const exampleJson = JSON.stringify(demoCurves.slice(0, 2), null, 2);
-
 export function DataImporter() {
-  const setCurves = useCurveStore((state) => state.setCurves);
-  const [jsonText, setJsonText] = useState(exampleJson);
-  const [error, setError] = useState<string | undefined>();
-  const [success, setSuccess] = useState<string | undefined>();
-
-  const rowsLabel = useMemo(() => {
-    try {
-      return `${parseJsonCurves(jsonText).length} 条曲线`;
-    } catch {
-      return "等待导入";
-    }
-  }, [jsonText]);
-
-  const handleJsonImport = () => {
-    try {
-      const curves = parseJsonCurves(jsonText);
-      setCurves(curves);
-      setError(undefined);
-      setSuccess(`已导入 ${curves.length} 条 JSON 曲线`);
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "JSON 解析失败");
-      setSuccess(undefined);
-    }
-  };
+  const appendCurves = useCurveStore((state) => state.appendCurves);
+  const [arrayName, setArrayName] = useState("Imported Array");
+  const [xText, setXText] = useState("");
+  const [yText, setYText] = useState("0.2, 0.25, 0.28, 0.31, 0.35");
+  const [error, setError] = useState<string>();
+  const [success, setSuccess] = useState<string>();
 
   const handleCsvImport = async (file: File | undefined) => {
     if (!file) return;
@@ -37,7 +16,7 @@ export function DataImporter() {
     try {
       const content = await file.text();
       const curves = parseCsvCurves(content);
-      setCurves(curves);
+      appendCurves(curves);
       setError(undefined);
       setSuccess(`已导入 ${curves.length} 条 CSV 曲线`);
     } catch (reason) {
@@ -46,37 +25,70 @@ export function DataImporter() {
     }
   };
 
+  const handleArrayImport = () => {
+    try {
+      const curve = parseArrayCurve(arrayName, yText, xText);
+      appendCurves([curve]);
+      setError(undefined);
+      setSuccess(`已导入 ${curve.name}`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "数组解析失败");
+      setSuccess(undefined);
+    }
+  };
+
   return (
     <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-900">数据导入</h2>
-        <span className="text-xs text-slate-500">{rowsLabel}</span>
+      <div>
+        <h2 className="text-sm font-semibold text-slate-900">Import Data</h2>
+        <p className="mt-1 text-xs text-slate-500">CSV 或数组会追加到当前 Project。</p>
       </div>
 
-      <textarea
-        value={jsonText}
-        onChange={(event) => setJsonText(event.target.value)}
-        className="h-44 w-full resize-none rounded-md border border-slate-300 bg-white p-3 font-mono text-xs leading-5 text-slate-800 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-        spellCheck={false}
-      />
+      <label className="flex cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+        Import CSV
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          className="hidden"
+          onChange={(event) => void handleCsvImport(event.target.files?.[0])}
+        />
+      </label>
 
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={handleJsonImport}
-          className="rounded-md bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-        >
-          导入 JSON
-        </button>
-        <label className="flex cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
-          上传 CSV
+      <div className="space-y-2 rounded-md border border-slate-200 bg-white p-3">
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-600">name</span>
           <input
-            type="file"
-            accept=".csv,text/csv"
-            className="hidden"
-            onChange={(event) => void handleCsvImport(event.target.files?.[0])}
+            value={arrayName}
+            onChange={(event) => setArrayName(event.target.value)}
+            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
           />
         </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-600">x 可选</span>
+          <textarea
+            value={xText}
+            onChange={(event) => setXText(event.target.value)}
+            placeholder="留空时自动生成 1..n"
+            className="h-16 w-full resize-none rounded-md border border-slate-300 bg-white p-2 font-mono text-xs leading-5 text-slate-800 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+            spellCheck={false}
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-600">y</span>
+          <textarea
+            value={yText}
+            onChange={(event) => setYText(event.target.value)}
+            className="h-20 w-full resize-none rounded-md border border-slate-300 bg-white p-2 font-mono text-xs leading-5 text-slate-800 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+            spellCheck={false}
+          />
+        </label>
+        <button
+          type="button"
+          onClick={handleArrayImport}
+          className="w-full rounded-md bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-700"
+        >
+          Import Array
+        </button>
       </div>
 
       {error ? (

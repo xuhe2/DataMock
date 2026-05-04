@@ -1,15 +1,20 @@
 import { create } from "zustand";
 import { createGeneratedCurve } from "../core/transforms";
 import { demoCurves } from "../data/demoCurves";
-import type { Curve, TransformDraft } from "../types";
+import type { Curve, DataMockProject, TransformDraft } from "../types";
 
 type CurveStore = {
+  projectName: string;
   curves: Curve[];
   selectedCurveIds: string[];
   activeCurveId?: string;
   referenceCurveId?: string;
   transformDrafts: TransformDraft[];
   setCurves: (curves: Curve[]) => void;
+  appendCurves: (curves: Curve[]) => void;
+  newProject: () => void;
+  loadProject: (project: DataMockProject) => void;
+  getProjectSnapshot: () => DataMockProject;
   toggleCurveVisible: (curveId: string) => void;
   setActiveCurve: (curveId: string) => void;
   setReferenceCurve: (curveId: string | undefined) => void;
@@ -41,6 +46,28 @@ function uniqueIds(curves: Curve[]): string[] {
   return curves.map((curve) => curve.id);
 }
 
+function makeUniqueCurves(curves: Curve[], existingIds: string[]): Curve[] {
+  const usedIds = new Set(existingIds);
+
+  return curves.map((curve) => {
+    const baseId = curve.id.trim() || "curve";
+    let nextId = baseId;
+    let suffix = 2;
+
+    while (usedIds.has(nextId)) {
+      nextId = `${baseId}_${suffix}`;
+      suffix += 1;
+    }
+
+    usedIds.add(nextId);
+
+    return {
+      ...curve,
+      id: nextId,
+    };
+  });
+}
+
 function downloadJson(filename: string, data: unknown): void {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -56,6 +83,7 @@ function downloadJson(filename: string, data: unknown): void {
 const initialCurves = prepareImportedCurves(demoCurves);
 
 export const useCurveStore = create<CurveStore>((set, get) => ({
+  projectName: "Demo Project",
   curves: initialCurves,
   selectedCurveIds: uniqueIds(initialCurves),
   activeCurveId: initialCurves[0]?.id,
@@ -66,12 +94,74 @@ export const useCurveStore = create<CurveStore>((set, get) => ({
     const nextCurves = prepareImportedCurves(curves);
 
     set({
+      projectName: "Untitled Project",
       curves: nextCurves,
       selectedCurveIds: uniqueIds(nextCurves),
       activeCurveId: nextCurves[0]?.id,
       referenceCurveId: nextCurves[1]?.id,
       transformDrafts: [],
     });
+  },
+
+  appendCurves: (curves) => {
+    set((state) => {
+      const nextCurves = prepareImportedCurves(makeUniqueCurves(curves, uniqueIds(state.curves)));
+      const nextCurveIds = uniqueIds(nextCurves);
+
+      return {
+        curves: [...state.curves, ...nextCurves],
+        selectedCurveIds: [...state.selectedCurveIds, ...nextCurveIds],
+        activeCurveId: nextCurveIds[0] ?? state.activeCurveId,
+        referenceCurveId: state.referenceCurveId ?? nextCurveIds[1] ?? nextCurveIds[0],
+      };
+    });
+  },
+
+  newProject: () => {
+    set({
+      projectName: "Untitled Project",
+      curves: [],
+      selectedCurveIds: [],
+      activeCurveId: undefined,
+      referenceCurveId: undefined,
+      transformDrafts: [],
+    });
+  },
+
+  loadProject: (project) => {
+    const nextCurves = prepareImportedCurves(project.curves);
+    const validIds = new Set(uniqueIds(nextCurves));
+    const selectedCurveIds = project.selectedCurveIds.filter((id) => validIds.has(id));
+    const activeCurveId = project.activeCurveId && validIds.has(project.activeCurveId)
+      ? project.activeCurveId
+      : nextCurves[0]?.id;
+    const referenceCurveId = project.referenceCurveId && validIds.has(project.referenceCurveId)
+      ? project.referenceCurveId
+      : undefined;
+
+    set({
+      projectName: project.name || "Untitled Project",
+      curves: nextCurves,
+      selectedCurveIds: selectedCurveIds.length ? selectedCurveIds : uniqueIds(nextCurves),
+      activeCurveId,
+      referenceCurveId,
+      transformDrafts: project.transformDrafts,
+    });
+  },
+
+  getProjectSnapshot: () => {
+    const state = get();
+
+    return {
+      version: 1,
+      name: state.projectName,
+      curves: state.curves,
+      selectedCurveIds: state.selectedCurveIds,
+      activeCurveId: state.activeCurveId,
+      referenceCurveId: state.referenceCurveId,
+      transformDrafts: state.transformDrafts,
+      savedAt: new Date().toISOString(),
+    };
   },
 
   toggleCurveVisible: (curveId) => {
