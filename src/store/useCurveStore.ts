@@ -13,6 +13,7 @@ type CurveStore = {
   toggleCurveVisible: (curveId: string) => void;
   setActiveCurve: (curveId: string) => void;
   setReferenceCurve: (curveId: string | undefined) => void;
+  renameCurve: (curveId: string, name: string) => void;
   addTransformDraft: (draft: TransformDraft) => void;
   updateTransformDraft: (id: string, patch: Partial<TransformDraft>) => void;
   removeTransformDraft: (id: string) => void;
@@ -91,6 +92,22 @@ export const useCurveStore = create<CurveStore>((set, get) => ({
 
   setReferenceCurve: (curveId) => {
     set({ referenceCurveId: curveId });
+  },
+
+  renameCurve: (curveId, name) => {
+    const nextName = name.trim();
+    if (!nextName) return;
+
+    set((state) => ({
+      curves: state.curves.map((curve) =>
+        curve.id === curveId
+          ? {
+              ...curve,
+              name: nextName,
+            }
+          : curve,
+      ),
+    }));
   },
 
   addTransformDraft: (draft) => {

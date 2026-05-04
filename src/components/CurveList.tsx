@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { useCurveStore } from "../store/useCurveStore";
 import type { Curve } from "../types";
 
@@ -10,6 +11,7 @@ type CurveRowProps = {
   onToggle: () => void;
   onSetActive: () => void;
   onSetReference: () => void;
+  onRename: (name: string) => void;
   onDelete: () => void;
 };
 
@@ -26,9 +28,35 @@ function CurveRow({
   onToggle,
   onSetActive,
   onSetReference,
+  onRename,
   onDelete,
 }: CurveRowProps) {
   const isGenerated = curve.meta?.kind === "generated";
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftName, setDraftName] = useState(curve.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setDraftName(curve.name);
+  }, [curve.name]);
+
+  useEffect(() => {
+    if (isEditing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [isEditing]);
+
+  const saveName = () => {
+    onRename(draftName);
+    setDraftName((value) => value.trim() || curve.name);
+    setIsEditing(false);
+  };
+
+  const cancelName = () => {
+    setDraftName(curve.name);
+    setIsEditing(false);
+  };
 
   return (
     <div
@@ -45,7 +73,33 @@ function CurveRow({
           className="mt-1 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
         />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-slate-900">{curve.name}</span>
+          {isEditing ? (
+            <input
+              ref={inputRef}
+              value={draftName}
+              onChange={(event) => setDraftName(event.target.value)}
+              onBlur={saveName}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  saveName();
+                }
+
+                if (event.key === "Escape") {
+                  cancelName();
+                }
+              }}
+              className="block w-full rounded border border-sky-300 bg-white px-1.5 py-0.5 text-sm font-medium text-slate-900 outline-none ring-2 ring-sky-100"
+            />
+          ) : (
+            <button
+              type="button"
+              title="双击重命名"
+              onDoubleClick={() => setIsEditing(true)}
+              className="block max-w-full truncate text-left text-sm font-medium text-slate-900"
+            >
+              {curve.name}
+            </button>
+          )}
           <span className="mt-0.5 block truncate text-xs text-slate-500">{curve.id}</span>
         </span>
       </label>
@@ -100,6 +154,7 @@ export function CurveList() {
   const toggleCurveVisible = useCurveStore((state) => state.toggleCurveVisible);
   const setActiveCurve = useCurveStore((state) => state.setActiveCurve);
   const setReferenceCurve = useCurveStore((state) => state.setReferenceCurve);
+  const renameCurve = useCurveStore((state) => state.renameCurve);
   const deleteCurve = useCurveStore((state) => state.deleteCurve);
   const generatedCount = curves.filter((curve) => curve.meta?.kind === "generated").length;
 
@@ -124,6 +179,7 @@ export function CurveList() {
             onToggle={() => toggleCurveVisible(curve.id)}
             onSetActive={() => setActiveCurve(curve.id)}
             onSetReference={() => setReferenceCurve(curve.id)}
+            onRename={(name) => renameCurve(curve.id, name)}
             onDelete={() => deleteCurve(curve.id)}
           />
         ))}
