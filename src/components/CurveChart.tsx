@@ -1,19 +1,18 @@
 import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
 import { useCurveStore } from "../store/useCurveStore";
-import type { Curve, MockCurve } from "../types";
+import type { Curve } from "../types";
 
-function isMockCurve(curve: Curve | MockCurve): curve is MockCurve {
-  return "sourceCurveId" in curve;
+function lineType(curve: Curve): "solid" | "dashed" {
+  return curve.meta?.style?.lineType ?? (curve.meta?.kind === "generated" ? "dashed" : "solid");
 }
 
 export function CurveChart() {
   const curves = useCurveStore((state) => state.curves);
-  const mockCurves = useCurveStore((state) => state.mockCurves);
   const selectedCurveIds = useCurveStore((state) => state.selectedCurveIds);
 
   const option = useMemo(() => {
-    const visibleCurves = [...curves, ...mockCurves].filter((curve) => selectedCurveIds.includes(curve.id));
+    const visibleCurves = curves.filter((curve) => selectedCurveIds.includes(curve.id));
 
     return {
       animation: false,
@@ -60,8 +59,8 @@ export function CurveChart() {
         symbolSize: 5,
         smooth: false,
         lineStyle: {
-          width: isMockCurve(curve) ? 2.5 : 2,
-          type: isMockCurve(curve) ? "dashed" : "solid",
+          width: lineType(curve) === "dashed" ? 2.5 : 2,
+          type: lineType(curve),
         },
         emphasis: {
           focus: "series",
@@ -69,14 +68,14 @@ export function CurveChart() {
         data: curve.x.map((x, index) => [x, curve.y[index]]),
       })),
     };
-  }, [curves, mockCurves, selectedCurveIds]);
+  }, [curves, selectedCurveIds]);
 
   return (
     <section className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
         <div>
           <h1 className="text-base font-semibold text-slate-950">数据曲线 Mock 工具</h1>
-          <p className="text-xs text-slate-500">原始曲线为实线，Mock 曲线为虚线</p>
+          <p className="text-xs text-slate-500">Raw 曲线为实线，Generated 曲线为虚线</p>
         </div>
       </div>
       <div className="min-h-0 flex-1 bg-white p-3">

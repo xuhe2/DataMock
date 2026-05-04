@@ -4,7 +4,18 @@ export type Curve = {
   group?: string;
   x: Array<number | string>;
   y: number[];
-  meta?: Record<string, any>;
+  meta?: CurveMeta;
+};
+
+export type CurveMeta = {
+  kind?: "raw" | "generated";
+  sourceCurveId?: string;
+  transforms?: Transform[];
+  createdAt?: string;
+  style?: {
+    lineType?: "solid" | "dashed";
+  };
+  [key: string]: any;
 };
 
 export type TransformType =
@@ -22,7 +33,8 @@ export type Transform = {
   params: Record<string, any>;
 };
 
-export type MockCurve = Curve & {
-  sourceCurveId: string;
-  transforms: Transform[];
+export type TransformDraft = {
+  id: string;
+  type: TransformType;
+  params: Record<string, any>;
 };

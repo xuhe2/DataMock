@@ -6,12 +6,13 @@
 
 - 导入一组或多组曲线数据
 - 同时展示原始曲线和 Mock 曲线
-- 原始曲线使用实线，Mock 曲线使用虚线
+- Raw 曲线使用实线，Generated 曲线使用虚线
 - 支持 legend、tooltip、dataZoom
 - 支持曲线显示 / 隐藏、active curve、reference curve
 - 支持 Scale、Offset、Trend、Noise、Smooth、Reference Based 变换
-- 支持多次 Apply 后基于上一次 Mock 继续叠加
-- 支持 Reset 当前 Mock、Clear All Mock、导出 JSON
+- 支持组合 Transform Pipeline，一次生成一条新曲线
+- 生成曲线作为普通曲线进入曲线列表，可以继续作为 active/reference
+- 支持删除具体曲线、导出当前选中的曲线 JSON
 
 ## 安装依赖
 
@@ -61,7 +62,16 @@ type Curve = {
   group?: string;
   x: Array<number | string>;
   y: number[];
-  meta?: Record<string, any>;
+  meta?: {
+    kind?: "raw" | "generated";
+    sourceCurveId?: string;
+    transforms?: Transform[];
+    createdAt?: string;
+    style?: {
+      lineType?: "solid" | "dashed";
+    };
+    [key: string]: any;
+  };
 };
 ```
 
@@ -85,7 +95,16 @@ x,curve_1,curve_2,curve_3
 - Smooth: 使用移动平均
 - Reference Based: 当前曲线和 reference curve 混合后做幅度调整和趋势调整
 
-每次点击 `Apply Transform` 会生成或更新当前 active curve 的 Mock 曲线，不会修改原始曲线。同一条原始曲线多次 Apply 时会基于上一次 Mock 继续叠加。`Reset Mock` 会删除当前 active curve 的 Mock，使其回到只有原始曲线的状态。
+右侧面板使用组合 Pipeline：
+
+1. 选择 Transform 类型。
+2. 点击 `Add Step` 加入 Pipeline。
+3. 在 Pipeline 中编辑每个 step 的参数，也可以 `Up`、`Down`、`Delete` 调整顺序。
+4. 点击 `Apply Pipeline`，基于当前 active curve 按顺序执行所有 step，并生成一条新的 Generated 曲线。
+
+Generated 曲线不会覆盖原曲线，也不会单独放在 Mock 列表里。它会作为普通曲线进入左侧曲线列表，可以继续显示 / 隐藏、作为 active curve、作为 reference curve，或者通过 `Delete` 删除。
+
+`Export Selected` 会导出当前勾选的曲线到 `selected-curves.json`。
 
 ## 后续可扩展方向
 

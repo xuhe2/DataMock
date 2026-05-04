@@ -1,31 +1,43 @@
 import { create } from "zustand";
+import { createGeneratedCurve } from "../core/transforms";
 import { demoCurves } from "../data/demoCurves";
-import type { Curve, MockCurve, Transform, TransformType } from "../types";
-import { createMockCurve } from "../core/transforms";
+import type { Curve, TransformDraft } from "../types";
 
 type CurveStore = {
   curves: Curve[];
-  mockCurves: MockCurve[];
   selectedCurveIds: string[];
   activeCurveId?: string;
   referenceCurveId?: string;
-  transforms: Transform[];
+  transformDrafts: TransformDraft[];
   setCurves: (curves: Curve[]) => void;
   toggleCurveVisible: (curveId: string) => void;
   setActiveCurve: (curveId: string) => void;
   setReferenceCurve: (curveId: string | undefined) => void;
-  applyTransform: (type: TransformType, params: Record<string, any>) => void;
-  resetMockCurve: () => void;
-  clearAllMockCurves: () => void;
-  exportMockData: () => void;
+  addTransformDraft: (draft: TransformDraft) => void;
+  updateTransformDraft: (id: string, patch: Partial<TransformDraft>) => void;
+  removeTransformDraft: (id: string) => void;
+  moveTransformDraft: (id: string, direction: "up" | "down") => void;
+  clearTransformDrafts: () => void;
+  applyTransformPipeline: () => void;
+  deleteCurve: (curveId: string) => void;
+  exportSelectedCurves: () => void;
 };
+
+function prepareImportedCurves(curves: Curve[]): Curve[] {
+  return curves.map((curve) => ({
+    ...curve,
+    meta: {
+      ...curve.meta,
+      kind: curve.meta?.kind ?? "raw",
+      style: {
+        lineType: curve.meta?.style?.lineType ?? "solid",
+      },
+    },
+  }));
+}
 
 function uniqueIds(curves: Curve[]): string[] {
   return curves.map((curve) => curve.id);
-}
-
-function createTransformId(type: TransformType): string {
-  return `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function downloadJson(filename: string, data: unknown): void {
@@ -40,28 +52,31 @@ function downloadJson(filename: string, data: unknown): void {
   URL.revokeObjectURL(url);
 }
 
+const initialCurves = prepareImportedCurves(demoCurves);
+
 export const useCurveStore = create<CurveStore>((set, get) => ({
-  curves: demoCurves,
-  mockCurves: [],
-  selectedCurveIds: uniqueIds(demoCurves),
-  activeCurveId: demoCurves[0]?.id,
-  referenceCurveId: demoCurves[1]?.id,
-  transforms: [],
+  curves: initialCurves,
+  selectedCurveIds: uniqueIds(initialCurves),
+  activeCurveId: initialCurves[0]?.id,
+  referenceCurveId: initialCurves[1]?.id,
+  transformDrafts: [],
 
   setCurves: (curves) => {
+    const nextCurves = prepareImportedCurves(curves);
+
     set({
-      curves,
-      mockCurves: [],
-      selectedCurveIds: uniqueIds(curves),
-      activeCurveId: curves[0]?.id,
-      referenceCurveId: curves[1]?.id,
-      transforms: [],
+      curves: nextCurves,
+      selectedCurveIds: uniqueIds(nextCurves),
+      activeCurveId: nextCurves[0]?.id,
+      referenceCurveId: nextCurves[1]?.id,
+      transformDrafts: [],
     });
   },
 
   toggleCurveVisible: (curveId) => {
     set((state) => {
       const isSelected = state.selectedCurveIds.includes(curveId);
+
       return {
         selectedCurveIds: isSelected
           ? state.selectedCurveIds.filter((id) => id !== curveId)
@@ -78,82 +93,98 @@ export const useCurveStore = create<CurveStore>((set, get) => ({
     set({ referenceCurveId: curveId });
   },
 
-  applyTransform: (type, params) => {
-    const state = get();
-    const activeCurveId = state.activeCurveId;
-    if (!activeCurveId) return;
+  addTransformDraft: (draft) => {
+    set((state) => ({
+      transformDrafts: [...state.transformDrafts, draft],
+    }));
+  },
 
-    const sourceCurve = state.curves.find((curve) => curve.id === activeCurveId);
+  updateTransformDraft: (id, patch) => {
+    set((state) => ({
+      transformDrafts: state.transformDrafts.map((draft) =>
+        draft.id === id
+          ? {
+              ...draft,
+              ...patch,
+              params: patch.params ?? draft.params,
+            }
+          : draft,
+      ),
+    }));
+  },
+
+  removeTransformDraft: (id) => {
+    set((state) => ({
+      transformDrafts: state.transformDrafts.filter((draft) => draft.id !== id),
+    }));
+  },
+
+  moveTransformDraft: (id, direction) => {
+    set((state) => {
+      const index = state.transformDrafts.findIndex((draft) => draft.id === id);
+      const nextIndex = direction === "up" ? index - 1 : index + 1;
+
+      if (index < 0 || nextIndex < 0 || nextIndex >= state.transformDrafts.length) {
+        return state;
+      }
+
+      const nextDrafts = [...state.transformDrafts];
+      [nextDrafts[index], nextDrafts[nextIndex]] = [nextDrafts[nextIndex], nextDrafts[index]];
+
+      return {
+        transformDrafts: nextDrafts,
+      };
+    });
+  },
+
+  clearTransformDrafts: () => {
+    set({ transformDrafts: [] });
+  },
+
+  applyTransformPipeline: () => {
+    const state = get();
+    if (!state.activeCurveId || state.transformDrafts.length === 0) return;
+
+    const sourceCurve = state.curves.find((curve) => curve.id === state.activeCurveId);
     if (!sourceCurve) return;
 
-    const previousMock = state.mockCurves.find((curve) => curve.sourceCurveId === activeCurveId);
-    const transform: Transform = {
-      id: createTransformId(type),
-      curveId: activeCurveId,
-      type,
-      params,
+    const lookupCurve = (curveId: string): Curve | undefined => {
+      return state.curves.find((curve) => curve.id === curveId);
     };
-
-    const lookupCurve = (curveId: string): Curve | MockCurve | undefined => {
-      return (
-        state.curves.find((curve) => curve.id === curveId) ??
-        state.mockCurves.find((curve) => curve.id === curveId || curve.sourceCurveId === curveId)
-      );
-    };
-
-    const nextMock = createMockCurve(
+    const sourceGeneratedCount = state.curves.filter(
+      (curve) => curve.meta?.sourceCurveId === sourceCurve.id,
+    ).length;
+    const generatedCurve = createGeneratedCurve(
       sourceCurve,
-      previousMock ?? sourceCurve,
-      previousMock?.transforms ?? [],
-      transform,
+      state.transformDrafts,
       lookupCurve,
+      sourceGeneratedCount + 1,
     );
 
-    const nextMockCurves = [
-      ...state.mockCurves.filter((curve) => curve.sourceCurveId !== activeCurveId),
-      nextMock,
-    ];
-    const nextSelectedCurveIds = state.selectedCurveIds.includes(nextMock.id)
-      ? state.selectedCurveIds
-      : [...state.selectedCurveIds, nextMock.id];
-
     set({
-      mockCurves: nextMockCurves,
-      selectedCurveIds: nextSelectedCurveIds,
-      transforms: [...state.transforms.filter((item) => item.curveId !== activeCurveId), ...nextMock.transforms],
+      curves: [...state.curves, generatedCurve],
+      selectedCurveIds: [...state.selectedCurveIds, generatedCurve.id],
+      activeCurveId: generatedCurve.id,
     });
   },
 
-  resetMockCurve: () => {
-    const activeCurveId = get().activeCurveId;
-    if (!activeCurveId) return;
-
+  deleteCurve: (curveId) => {
     set((state) => {
-      const activeMockIds = state.mockCurves
-        .filter((curve) => curve.sourceCurveId === activeCurveId)
-        .map((curve) => curve.id);
+      const nextCurves = state.curves.filter((curve) => curve.id !== curveId);
+      const fallbackCurveId = nextCurves[0]?.id;
 
       return {
-        mockCurves: state.mockCurves.filter((curve) => curve.sourceCurveId !== activeCurveId),
-        selectedCurveIds: state.selectedCurveIds.filter((id) => !activeMockIds.includes(id)),
-        transforms: state.transforms.filter((transform) => transform.curveId !== activeCurveId),
+        curves: nextCurves,
+        selectedCurveIds: state.selectedCurveIds.filter((id) => id !== curveId),
+        activeCurveId: state.activeCurveId === curveId ? fallbackCurveId : state.activeCurveId,
+        referenceCurveId: state.referenceCurveId === curveId ? undefined : state.referenceCurveId,
       };
     });
   },
 
-  clearAllMockCurves: () => {
-    set((state) => {
-      const mockIds = state.mockCurves.map((curve) => curve.id);
-
-      return {
-        mockCurves: [],
-        selectedCurveIds: state.selectedCurveIds.filter((id) => !mockIds.includes(id)),
-        transforms: [],
-      };
-    });
-  },
-
-  exportMockData: () => {
-    downloadJson("mock-curves.json", get().mockCurves);
+  exportSelectedCurves: () => {
+    const state = get();
+    const selectedCurves = state.curves.filter((curve) => state.selectedCurveIds.includes(curve.id));
+    downloadJson("selected-curves.json", selectedCurves);
   },
 }));

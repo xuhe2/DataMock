@@ -1,29 +1,35 @@
 import { useCurveStore } from "../store/useCurveStore";
-import type { Curve, MockCurve } from "../types";
-
-function isMockCurve(curve: Curve | MockCurve): curve is MockCurve {
-  return "sourceCurveId" in curve;
-}
+import type { Curve } from "../types";
 
 type CurveRowProps = {
-  curve: Curve | MockCurve;
+  curve: Curve;
   checked: boolean;
   isActive: boolean;
   isReference: boolean;
+  canDelete: boolean;
   onToggle: () => void;
-  onSetActive?: () => void;
-  onSetReference?: () => void;
+  onSetActive: () => void;
+  onSetReference: () => void;
+  onDelete: () => void;
 };
+
+function curveKindLabel(curve: Curve): string {
+  return curve.meta?.kind === "generated" ? "Generated" : "Raw";
+}
 
 function CurveRow({
   curve,
   checked,
   isActive,
   isReference,
+  canDelete,
   onToggle,
   onSetActive,
   onSetReference,
+  onDelete,
 }: CurveRowProps) {
+  const isGenerated = curve.meta?.kind === "generated";
+
   return (
     <div
       className={[
@@ -45,32 +51,42 @@ function CurveRow({
       </label>
 
       <div className="mt-2 flex flex-wrap gap-1.5">
-        {isMockCurve(curve) ? (
-          <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[11px] font-medium text-violet-700">Mock</span>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={onSetActive}
-              className={[
-                "rounded px-2 py-1 text-xs font-medium transition",
-                isActive ? "bg-sky-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200",
-              ].join(" ")}
-            >
-              Active
-            </button>
-            <button
-              type="button"
-              onClick={onSetReference}
-              className={[
-                "rounded px-2 py-1 text-xs font-medium transition",
-                isReference ? "bg-amber-500 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200",
-              ].join(" ")}
-            >
-              Reference
-            </button>
-          </>
-        )}
+        <span
+          className={[
+            "rounded px-1.5 py-0.5 text-[11px] font-medium",
+            isGenerated ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-600",
+          ].join(" ")}
+        >
+          {curveKindLabel(curve)}
+        </span>
+        <button
+          type="button"
+          onClick={onSetActive}
+          className={[
+            "rounded px-2 py-1 text-xs font-medium transition",
+            isActive ? "bg-sky-600 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+          ].join(" ")}
+        >
+          Active
+        </button>
+        <button
+          type="button"
+          onClick={onSetReference}
+          className={[
+            "rounded px-2 py-1 text-xs font-medium transition",
+            isReference ? "bg-amber-500 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+          ].join(" ")}
+        >
+          Reference
+        </button>
+        <button
+          type="button"
+          disabled={!canDelete}
+          onClick={onDelete}
+          className="rounded px-2 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent"
+        >
+          Delete
+        </button>
       </div>
     </div>
   );
@@ -78,20 +94,21 @@ function CurveRow({
 
 export function CurveList() {
   const curves = useCurveStore((state) => state.curves);
-  const mockCurves = useCurveStore((state) => state.mockCurves);
   const selectedCurveIds = useCurveStore((state) => state.selectedCurveIds);
   const activeCurveId = useCurveStore((state) => state.activeCurveId);
   const referenceCurveId = useCurveStore((state) => state.referenceCurveId);
   const toggleCurveVisible = useCurveStore((state) => state.toggleCurveVisible);
   const setActiveCurve = useCurveStore((state) => state.setActiveCurve);
   const setReferenceCurve = useCurveStore((state) => state.setReferenceCurve);
+  const deleteCurve = useCurveStore((state) => state.deleteCurve);
+  const generatedCount = curves.filter((curve) => curve.meta?.kind === "generated").length;
 
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-900">曲线列表</h2>
         <span className="text-xs text-slate-500">
-          {curves.length} 原始 / {mockCurves.length} Mock
+          {curves.length - generatedCount} Raw / {generatedCount} Generated
         </span>
       </div>
 
@@ -103,27 +120,14 @@ export function CurveList() {
             checked={selectedCurveIds.includes(curve.id)}
             isActive={curve.id === activeCurveId}
             isReference={curve.id === referenceCurveId}
+            canDelete={curves.length > 1}
             onToggle={() => toggleCurveVisible(curve.id)}
             onSetActive={() => setActiveCurve(curve.id)}
             onSetReference={() => setReferenceCurve(curve.id)}
+            onDelete={() => deleteCurve(curve.id)}
           />
         ))}
       </div>
-
-      {mockCurves.length ? (
-        <div className="space-y-2 border-t border-slate-200 pt-3">
-          {mockCurves.map((curve) => (
-            <CurveRow
-              key={curve.id}
-              curve={curve}
-              checked={selectedCurveIds.includes(curve.id)}
-              isActive={false}
-              isReference={false}
-              onToggle={() => toggleCurveVisible(curve.id)}
-            />
-          ))}
-        </div>
-      ) : null}
     </section>
   );
 }

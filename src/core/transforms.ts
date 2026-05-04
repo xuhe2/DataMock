@@ -1,7 +1,7 @@
-import type { Curve, MockCurve, Transform } from "../types";
+import type { Curve, Transform, TransformDraft } from "../types";
 import { createSeededRandom, randomNormal } from "./random";
 
-type CurveLookup = (curveId: string) => Curve | MockCurve | undefined;
+type CurveLookup = (curveId: string) => Curve | undefined;
 
 function asNumber(value: unknown, fallback: number): number {
   const parsed = typeof value === "number" ? value : Number(value);
@@ -116,24 +116,46 @@ export function applySingleTransform(
   };
 }
 
-export function createMockCurve(
+function toTransform(sourceCurveId: string, draft: TransformDraft): Transform {
+  return {
+    id: draft.id,
+    curveId: sourceCurveId,
+    type: draft.type,
+    params: draft.params,
+  };
+}
+
+export function applyTransformPipeline(
   sourceCurve: Curve,
-  baseCurve: Curve,
-  previousTransforms: Transform[],
-  transform: Transform,
+  drafts: TransformDraft[],
   lookupCurve: CurveLookup,
-): MockCurve {
-  const transformed = applySingleTransform(baseCurve, transform, lookupCurve);
+): Curve {
+  return drafts.reduce<Curve>((current, draft) => {
+    return applySingleTransform(current, toTransform(sourceCurve.id, draft), lookupCurve);
+  }, sourceCurve);
+}
+
+export function createGeneratedCurve(
+  sourceCurve: Curve,
+  drafts: TransformDraft[],
+  lookupCurve: CurveLookup,
+  index: number,
+): Curve {
+  const transformed = applyTransformPipeline(sourceCurve, drafts, lookupCurve);
+  const transforms = drafts.map((draft) => toTransform(sourceCurve.id, draft));
 
   return {
     ...transformed,
-    id: `mock_${sourceCurve.id}`,
-    name: `${sourceCurve.name} Mock`,
-    sourceCurveId: sourceCurve.id,
-    transforms: [...previousTransforms, transform],
+    id: `generated_${sourceCurve.id}_${Date.now()}_${index}`,
+    name: `${sourceCurve.name} Mock ${index}`,
     meta: {
-      ...sourceCurve.meta,
-      mockUpdatedAt: new Date().toISOString(),
+      kind: "generated",
+      sourceCurveId: sourceCurve.id,
+      transforms,
+      createdAt: new Date().toISOString(),
+      style: {
+        lineType: "dashed",
+      },
     },
   };
 }
