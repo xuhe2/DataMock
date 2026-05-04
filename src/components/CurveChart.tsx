@@ -1,5 +1,6 @@
 import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
+import { applyTransformPipeline } from "../core/transforms";
 import { useCurveStore } from "../store/useCurveStore";
 import type { Curve } from "../types";
 
@@ -10,9 +11,34 @@ function lineType(curve: Curve): "solid" | "dashed" {
 export function CurveChart() {
   const curves = useCurveStore((state) => state.curves);
   const selectedCurveIds = useCurveStore((state) => state.selectedCurveIds);
+  const activeCurveId = useCurveStore((state) => state.activeCurveId);
+  const transformDrafts = useCurveStore((state) => state.transformDrafts);
 
   const option = useMemo(() => {
     const visibleCurves = curves.filter((curve) => selectedCurveIds.includes(curve.id));
+    const activeCurve = curves.find((curve) => curve.id === activeCurveId);
+    const canPreview =
+      Boolean(activeCurve) &&
+      transformDrafts.length > 0 &&
+      transformDrafts.every((draft) => draft.type !== "reference_based" || draft.params.referenceCurveId);
+    const lookupCurve = (curveId: string): Curve | undefined => {
+      return curves.find((curve) => curve.id === curveId);
+    };
+    const previewCurve =
+      activeCurve && canPreview
+        ? {
+            ...applyTransformPipeline(activeCurve, transformDrafts, lookupCurve),
+            id: "__preview__",
+            name: `${activeCurve.name} Preview`,
+            meta: {
+              kind: "generated" as const,
+              style: {
+                lineType: "dashed" as const,
+              },
+            },
+          }
+        : undefined;
+    const chartCurves = previewCurve ? [...visibleCurves, previewCurve] : visibleCurves;
 
     return {
       animation: false,
@@ -52,30 +78,32 @@ export function CurveChart() {
           bottom: 24,
         },
       ],
-      series: visibleCurves.map((curve) => ({
+      series: chartCurves.map((curve) => ({
         name: curve.name,
         type: "line",
         symbol: "circle",
         symbolSize: 5,
         smooth: false,
         lineStyle: {
-          width: lineType(curve) === "dashed" ? 2.5 : 2,
+          width: curve.id === "__preview__" ? 3 : lineType(curve) === "dashed" ? 2.5 : 2,
           type: lineType(curve),
+          opacity: curve.id === "__preview__" ? 0.9 : 1,
         },
+        itemStyle: curve.id === "__preview__" ? { opacity: 0.9 } : undefined,
         emphasis: {
           focus: "series",
         },
         data: curve.x.map((x, index) => [x, curve.y[index]]),
       })),
     };
-  }, [curves, selectedCurveIds]);
+  }, [activeCurveId, curves, selectedCurveIds, transformDrafts]);
 
   return (
     <section className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
         <div>
           <h1 className="text-base font-semibold text-slate-950">数据曲线 Mock 工具</h1>
-          <p className="text-xs text-slate-500">Raw 曲线为实线，Generated 曲线为虚线</p>
+          <p className="text-xs text-slate-500">Raw 曲线为实线，Generated 和 Preview 曲线为虚线</p>
         </div>
       </div>
       <div className="min-h-0 flex-1 bg-white p-3">

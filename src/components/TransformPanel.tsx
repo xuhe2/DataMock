@@ -247,6 +247,7 @@ export function TransformPanel() {
     return draft.type === "reference_based" && !draft.params.referenceCurveId;
   });
   const canApply = Boolean(activeCurveId) && transformDrafts.length > 0 && !hasInvalidReferenceStep;
+  const canPreview = canApply;
 
   return (
     <aside className="flex h-full min-h-0 flex-col border-l border-slate-200 bg-slate-50">
@@ -255,6 +256,9 @@ export function TransformPanel() {
         <p className="mt-1 truncate text-xs text-slate-500">
           Active: {activeCurve ? activeCurve.name : "未选择"}
         </p>
+        {canPreview ? (
+          <p className="mt-1 text-xs text-sky-700">图表正在实时预览当前 Pipeline。</p>
+        ) : null}
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
