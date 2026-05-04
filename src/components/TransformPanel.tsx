@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
+import { transformHelp } from "../data/transformHelp";
 import { useCurveStore } from "../store/useCurveStore";
 import type { TransformDraft, TransformType } from "../types";
+import { HelpHint } from "./HelpHint";
 
 const transformOptions: Array<{ label: string; value: TransformType }> = [
   { label: "Scale", value: "scale" },
@@ -258,6 +260,10 @@ export function TransformPanel() {
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         <section className="space-y-3 rounded-md border border-slate-200 bg-white p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-600">选择要添加的 Transform</span>
+            <HelpHint help={transformHelp[type]} />
+          </div>
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-slate-600">Transform 类型</span>
             <select
@@ -337,6 +343,7 @@ export function TransformPanel() {
                         </option>
                       ))}
                     </select>
+                    <HelpHint help={transformHelp[draft.type]} />
                   </div>
 
                   <TransformParamsEditor
