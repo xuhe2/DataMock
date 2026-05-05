@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { HelpHint } from "../../components/HelpHint";
+import { PipelineTemplateControls } from "../../components/PipelineTemplateControls";
 import { applyScalarPipeline, useProjectStore } from "../../store/useProjectStore";
 import {
   createScalarTransformDraft,
@@ -122,6 +123,22 @@ export function ScalarTransformPanel({ sheet }: ScalarTransformPanelProps) {
     return draft.type === "reference_based" && !draft.params.referenceMetricId;
   });
   const canApply = Boolean(sheet.activeMetricId) && sheet.transformDrafts.length > 0 && !hasInvalidReferenceStep;
+  const sanitizeTemplateDrafts = (drafts: ScalarTransformDraft[]): ScalarTransformDraft[] => {
+    const metricIds = new Set(sheet.metrics.map((metric) => metric.id));
+
+    return drafts.map((draft) => {
+      if (draft.type !== "reference_based") return draft;
+
+      const referenceMetricId = String(draft.params.referenceMetricId ?? "");
+      return {
+        ...draft,
+        params: {
+          ...draft.params,
+          referenceMetricId: metricIds.has(referenceMetricId) ? referenceMetricId : "",
+        },
+      };
+    });
+  };
 
   return (
     <aside className="flex h-full min-h-0 flex-col border-l border-slate-200 bg-slate-50">
@@ -270,6 +287,24 @@ export function ScalarTransformPanel({ sheet }: ScalarTransformPanelProps) {
             </div>
           )}
         </section>
+
+        <PipelineTemplateControls
+          sheetKind="scalar"
+          transformDrafts={sheet.transformDrafts}
+          sanitizeDrafts={sanitizeTemplateDrafts}
+          onReplace={(drafts) =>
+            updateScalarSheet(sheet.id, (current) => ({
+              ...current,
+              transformDrafts: drafts,
+            }))
+          }
+          onAppend={(drafts) =>
+            updateScalarSheet(sheet.id, (current) => ({
+              ...current,
+              transformDrafts: [...current.transformDrafts, ...drafts],
+            }))
+          }
+        />
       </div>
 
       <div className="space-y-2 border-t border-slate-200 p-4">

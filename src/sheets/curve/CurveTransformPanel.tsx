@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { HelpHint } from "../../components/HelpHint";
+import { PipelineTemplateControls } from "../../components/PipelineTemplateControls";
 import { applyCurvePipeline, useProjectStore } from "../../store/useProjectStore";
 import { curveTransformHelp } from "./transformHelp";
 import {
@@ -162,6 +163,22 @@ export function CurveTransformPanel({ sheet }: CurveTransformPanelProps) {
     return draft.type === "reference_based" && !draft.params.referenceCurveId;
   });
   const canApply = Boolean(sheet.activeCurveId) && sheet.transformDrafts.length > 0 && !hasInvalidReferenceStep;
+  const sanitizeTemplateDrafts = (drafts: CurveTransformDraft[]): CurveTransformDraft[] => {
+    const curveIds = new Set(sheet.curves.map((curve) => curve.id));
+
+    return drafts.map((draft) => {
+      if (draft.type !== "reference_based") return draft;
+
+      const referenceCurveId = String(draft.params.referenceCurveId ?? "");
+      return {
+        ...draft,
+        params: {
+          ...draft.params,
+          referenceCurveId: curveIds.has(referenceCurveId) ? referenceCurveId : "",
+        },
+      };
+    });
+  };
 
   return (
     <aside className="flex h-full min-h-0 flex-col border-l border-slate-200 bg-slate-50">
@@ -313,6 +330,24 @@ export function CurveTransformPanel({ sheet }: CurveTransformPanelProps) {
             </div>
           )}
         </section>
+
+        <PipelineTemplateControls
+          sheetKind="curve"
+          transformDrafts={sheet.transformDrafts}
+          sanitizeDrafts={sanitizeTemplateDrafts}
+          onReplace={(drafts) =>
+            updateCurveSheet(sheet.id, (current) => ({
+              ...current,
+              transformDrafts: drafts,
+            }))
+          }
+          onAppend={(drafts) =>
+            updateCurveSheet(sheet.id, (current) => ({
+              ...current,
+              transformDrafts: [...current.transformDrafts, ...drafts],
+            }))
+          }
+        />
       </div>
 
       <div className="space-y-2 border-t border-slate-200 p-4">

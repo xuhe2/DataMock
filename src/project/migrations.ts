@@ -29,6 +29,7 @@ export function createDemoProject(): DataMockProject {
     name: "Demo Project",
     activeSheetId: curveSheet.id,
     sheets: [curveSheet, scalarSheet],
+    pipelineTemplates: [],
     savedAt: new Date().toISOString(),
   };
 }
@@ -41,6 +42,7 @@ export function createEmptyProject(): DataMockProject {
     name: "Untitled Project",
     activeSheetId: curveSheet.id,
     sheets: [curveSheet],
+    pipelineTemplates: [],
     savedAt: new Date().toISOString(),
   };
 }
@@ -88,6 +90,7 @@ export function migrateProject(input: unknown): DataMockProject {
         ? String(input.activeSheetId)
         : sheets[0]?.id,
       sheets,
+      pipelineTemplates: Array.isArray(input.pipelineTemplates) ? input.pipelineTemplates : [],
       savedAt: String(input.savedAt || new Date().toISOString()),
     };
   }
@@ -109,6 +112,7 @@ export function migrateProject(input: unknown): DataMockProject {
           transformDrafts: legacy.transformDrafts ?? [],
         },
       ],
+      pipelineTemplates: [],
       savedAt: legacy.savedAt || new Date().toISOString(),
     };
   }

@@ -1,6 +1,7 @@
 import { create } from "zustand";
+import { createId } from "../core/id";
 import { createEmptyProject, createDemoProject, migrateProject } from "../project/migrations";
-import type { DataMockProject, Sheet } from "../project/types";
+import type { DataMockProject, PipelineTemplate, Sheet } from "../project/types";
 import { createGeneratedCurve } from "../sheets/curve/transforms";
 import { ensureUniqueCurves, prepareCurves } from "../sheets/curve/sheet";
 import type { Curve, CurveSheet, CurveTransformDraft } from "../sheets/curve/types";
@@ -21,6 +22,13 @@ type ProjectStore = {
   updateScalarSheet: (sheetId: string, updater: (sheet: ScalarSheet) => ScalarSheet) => void;
   appendCurvesToActiveSheet: (curves: Curve[]) => void;
   appendMetricsToActiveSheet: (metrics: ScalarMetric[]) => void;
+  savePipelineTemplate: (
+    sheetKind: Sheet["kind"],
+    name: string,
+    description: string | undefined,
+    transformDrafts: Sheet["transformDrafts"],
+  ) => void;
+  deletePipelineTemplate: (templateId: string) => void;
   exportSelectedData: () => void;
 };
 
@@ -195,6 +203,40 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         referenceMetricId: sheet.referenceMetricId ?? nextMetricIds[1] ?? nextMetricIds[0],
       };
     });
+  },
+
+  savePipelineTemplate: (sheetKind, name, description, transformDrafts) => {
+    const nextName = name.trim();
+    if (!nextName || transformDrafts.length === 0) return;
+
+    set((state) => {
+      const now = new Date().toISOString();
+      const template = {
+        id: createId("pipeline_template"),
+        name: nextName,
+        sheetKind,
+        description: description?.trim() || undefined,
+        transformDrafts: structuredClone(transformDrafts),
+        createdAt: now,
+        updatedAt: now,
+      } as PipelineTemplate;
+
+      return {
+        project: {
+          ...state.project,
+          pipelineTemplates: [...state.project.pipelineTemplates, template],
+        },
+      };
+    });
+  },
+
+  deletePipelineTemplate: (templateId) => {
+    set((state) => ({
+      project: {
+        ...state.project,
+        pipelineTemplates: state.project.pipelineTemplates.filter((template) => template.id !== templateId),
+      },
+    }));
   },
 
   exportSelectedData: () => {

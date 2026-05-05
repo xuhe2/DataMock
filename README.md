@@ -66,6 +66,7 @@ Project 文件用于保存完整工作状态，后缀建议使用 `.datamock.jso
       "transformDrafts": []
     }
   ],
+  "pipelineTemplates": [],
   "savedAt": "2026-05-05T00:00:00.000Z"
 }
 ```
@@ -183,6 +184,22 @@ Scalar Sheet:
 Generated 数据不会覆盖原数据，也不会单独放在 Mock 列表里。它会作为普通数据进入当前 Sheet，可以继续显示 / 隐藏、作为 active、作为 reference，或者通过 `Delete` 删除。
 
 `Export Selected` 会根据当前 Sheet 类型导出 `selected-curves.json` 或 `selected-metrics.json`。
+
+## Pipeline Templates
+
+Pipeline 模板保存在 Project 文件的 `pipelineTemplates` 中，随 `.datamock.json` 一起保存和打开。
+
+- `Save as Template`: 将当前 Sheet 的 Pipeline 保存为模板。
+- `Replace`: 使用模板替换当前 Pipeline。
+- `Append`: 将模板步骤追加到当前 Pipeline 后面。
+- `Delete`: 删除选中的模板。
+
+模板按 Sheet 类型隔离：
+
+- Curve 模板只能用于 Curve Sheet。
+- Scalar 模板只能用于 Scalar Sheet。
+- 模板保存的是 Transform steps，不保存 active/reference 数据本身。
+- 如果模板里的 `referenceCurveId` 或 `referenceMetricId` 在当前 Sheet 不存在，应用模板时会自动清空该 reference，用户需要重新选择。
 
 ## 代码结构
 
