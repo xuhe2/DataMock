@@ -1,4 +1,13 @@
-import type { TransformHelp } from "../data/transformHelp";
+export type TransformHelp = {
+  title: string;
+  summary: string;
+  formula?: string;
+  params: Array<{
+    name: string;
+    description: string;
+  }>;
+  notes?: string[];
+};
 
 type HelpHintProps = {
   help: TransformHelp;

@@ -1,5 +1,9 @@
 import Papa from "papaparse";
-import type { Curve, DataMockProject } from "../types";
+import { slugifyId } from "./id";
+import { migrateProject } from "../project/migrations";
+import type { DataMockProject } from "../project/types";
+import type { Curve } from "../sheets/curve/types";
+import type { ScalarMetric } from "../sheets/scalar/types";
 
 function parseXValue(value: unknown): number | string {
   const raw = String(value ?? "").trim();
@@ -41,37 +45,7 @@ function validateCurve(curve: unknown, index: number): Curve {
 }
 
 export function parseProject(input: string): DataMockProject {
-  const parsed: unknown = JSON.parse(input);
-
-  if (!parsed || typeof parsed !== "object") {
-    throw new Error("项目文件不是有效对象");
-  }
-
-  const project = parsed as Partial<DataMockProject>;
-  if (project.version !== 1) {
-    throw new Error("不支持的项目文件版本");
-  }
-
-  if (!Array.isArray(project.curves)) {
-    throw new Error("项目文件缺少 curves");
-  }
-
-  const curves = project.curves.map(validateCurve);
-  const selectedCurveIds = Array.isArray(project.selectedCurveIds)
-    ? project.selectedCurveIds.map(String)
-    : curves.map((curve) => curve.id);
-  const transformDrafts = Array.isArray(project.transformDrafts) ? project.transformDrafts : [];
-
-  return {
-    version: 1,
-    name: project.name || "Untitled Project",
-    curves,
-    selectedCurveIds,
-    activeCurveId: project.activeCurveId,
-    referenceCurveId: project.referenceCurveId,
-    transformDrafts,
-    savedAt: project.savedAt || new Date().toISOString(),
-  };
+  return migrateProject(JSON.parse(input));
 }
 
 function parseNumberList(input: string, field: string): number[] {
@@ -111,10 +85,7 @@ export function parseArrayCurve(name: string, yInput: string, xInput?: string): 
   }
 
   const trimmedName = name.trim() || "Imported Array";
-  const id = trimmedName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "") || "array_curve";
+  const id = slugifyId(trimmedName, "array_curve");
 
   return {
     id,
@@ -123,6 +94,25 @@ export function parseArrayCurve(name: string, yInput: string, xInput?: string): 
     y,
     meta: {
       source: "array",
+    },
+  };
+}
+
+export function parseScalarMetric(name: string, valueInput: string, unit?: string): ScalarMetric {
+  const value = Number(valueInput);
+  if (!Number.isFinite(value)) {
+    throw new Error("value 必须是有效数字");
+  }
+
+  const trimmedName = name.trim() || "Imported Metric";
+
+  return {
+    id: slugifyId(trimmedName, "scalar_metric"),
+    name: trimmedName,
+    value,
+    unit: unit?.trim() || undefined,
+    meta: {
+      source: "manual",
     },
   };
 }

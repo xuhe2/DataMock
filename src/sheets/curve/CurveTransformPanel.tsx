@@ -1,21 +1,13 @@
 import { useMemo, useState } from "react";
-import { transformHelp } from "../data/transformHelp";
-import { useCurveStore } from "../store/useCurveStore";
-import type { TransformDraft, TransformType } from "../types";
-import { HelpHint } from "./HelpHint";
-
-const transformOptions: Array<{ label: string; value: TransformType }> = [
-  { label: "Scale", value: "scale" },
-  { label: "Offset", value: "offset" },
-  { label: "Trend", value: "trend" },
-  { label: "Noise", value: "noise" },
-  { label: "Smooth", value: "smooth" },
-  { label: "Reference Based", value: "reference_based" },
-];
-
-function createDraftId(type: TransformType): string {
-  return `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
+import { HelpHint } from "../../components/HelpHint";
+import { applyCurvePipeline, useProjectStore } from "../../store/useProjectStore";
+import { curveTransformHelp } from "./transformHelp";
+import {
+  createCurveTransformDraft,
+  curveTransformOptions,
+  defaultCurveTransformParams,
+} from "./transformDefaults";
+import type { CurveSheet, CurveTransformDraft, CurveTransformType } from "./types";
 
 type NumberInputProps = {
   label: string;
@@ -43,33 +35,21 @@ function NumberInput({ label, value, onChange, step = "0.01", min, max }: Number
   );
 }
 
-type TransformParamsEditorProps = {
-  draft: TransformDraft;
-  curves: Array<{ id: string; name: string }>;
+type ParamsEditorProps = {
+  draft: CurveTransformDraft;
+  sheet: CurveSheet;
   onChange: (params: Record<string, any>) => void;
 };
 
-function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEditorProps) {
+function CurveParamsEditor({ draft, sheet, onChange }: ParamsEditorProps) {
   const params = draft.params;
 
   if (draft.type === "scale") {
-    return (
-      <NumberInput
-        label="factor"
-        value={String(params.factor ?? 1)}
-        onChange={(value) => onChange({ factor: value })}
-      />
-    );
+    return <NumberInput label="factor" value={String(params.factor ?? 1)} onChange={(factor) => onChange({ factor })} />;
   }
 
   if (draft.type === "offset") {
-    return (
-      <NumberInput
-        label="value"
-        value={String(params.value ?? 0)}
-        onChange={(value) => onChange({ value })}
-      />
-    );
+    return <NumberInput label="value" value={String(params.value ?? 0)} onChange={(value) => onChange({ value })} />;
   }
 
   if (draft.type === "trend") {
@@ -78,23 +58,13 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
         <NumberInput
           label="strength"
           value={String(params.strength ?? 0)}
-          onChange={(value) =>
-            onChange({
-              ...params,
-              strength: value,
-            })
-          }
+          onChange={(strength) => onChange({ ...params, strength })}
         />
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-slate-600">direction</span>
           <select
             value={String(params.direction ?? "up")}
-            onChange={(event) =>
-              onChange({
-                ...params,
-                direction: event.target.value,
-              })
-            }
+            onChange={(event) => onChange({ ...params, direction: event.target.value })}
             className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
           >
             <option value="up">up</option>
@@ -112,23 +82,13 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
           label="sigma"
           value={String(params.sigma ?? 0)}
           min="0"
-          onChange={(value) =>
-            onChange({
-              ...params,
-              sigma: value,
-            })
-          }
+          onChange={(sigma) => onChange({ ...params, sigma })}
         />
         <NumberInput
           label="seed"
           value={String(params.seed ?? 1)}
           step="1"
-          onChange={(value) =>
-            onChange({
-              ...params,
-              seed: value,
-            })
-          }
+          onChange={(seed) => onChange({ ...params, seed })}
         />
       </div>
     );
@@ -141,7 +101,7 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
         value={String(params.windowSize ?? 3)}
         step="1"
         min="1"
-        onChange={(value) => onChange({ windowSize: value })}
+        onChange={(windowSize) => onChange({ windowSize })}
       />
     );
   }
@@ -152,16 +112,11 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
         <span className="mb-1 block text-xs font-medium text-slate-600">referenceCurveId</span>
         <select
           value={String(params.referenceCurveId ?? "")}
-          onChange={(event) =>
-            onChange({
-              ...params,
-              referenceCurveId: event.target.value,
-            })
-          }
+          onChange={(event) => onChange({ ...params, referenceCurveId: event.target.value })}
           className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
         >
           <option value="">请选择 Reference</option>
-          {curves.map((curve) => (
+          {sheet.curves.map((curve) => (
             <option key={curve.id} value={curve.id}>
               {curve.name}
             </option>
@@ -174,137 +129,80 @@ function TransformParamsEditor({ draft, curves, onChange }: TransformParamsEdito
           value={String(params.blend ?? 0.5)}
           min="0"
           max="1"
-          onChange={(value) =>
-            onChange({
-              ...params,
-              blend: value,
-            })
-          }
+          onChange={(blend) => onChange({ ...params, blend })}
         />
         <NumberInput
           label="amplitude"
           value={String(params.amplitudeFactor ?? 1)}
-          onChange={(value) =>
-            onChange({
-              ...params,
-              amplitudeFactor: value,
-            })
-          }
+          onChange={(amplitudeFactor) => onChange({ ...params, amplitudeFactor })}
         />
         <NumberInput
           label="trend"
           value={String(params.trendStrength ?? 0)}
-          onChange={(value) =>
-            onChange({
-              ...params,
-              trendStrength: value,
-            })
-          }
+          onChange={(trendStrength) => onChange({ ...params, trendStrength })}
         />
       </div>
     </div>
   );
 }
 
-function defaultParams(type: TransformType, referenceCurveId?: string): Record<string, any> {
-  if (type === "scale") return { factor: 1.05 };
-  if (type === "offset") return { value: 0.02 };
-  if (type === "trend") return { strength: 0.05, direction: "up" };
-  if (type === "noise") return { sigma: 0.01, seed: 42 };
-  if (type === "smooth") return { windowSize: 3 };
+type CurveTransformPanelProps = {
+  sheet: CurveSheet;
+};
 
-  return {
-    referenceCurveId,
-    blend: 0.5,
-    amplitudeFactor: 1.05,
-    trendStrength: 0.02,
-  };
-}
-
-export function TransformPanel() {
-  const curves = useCurveStore((state) => state.curves);
-  const activeCurveId = useCurveStore((state) => state.activeCurveId);
-  const referenceCurveId = useCurveStore((state) => state.referenceCurveId);
-  const setReferenceCurve = useCurveStore((state) => state.setReferenceCurve);
-  const transformDrafts = useCurveStore((state) => state.transformDrafts);
-  const addTransformDraft = useCurveStore((state) => state.addTransformDraft);
-  const updateTransformDraft = useCurveStore((state) => state.updateTransformDraft);
-  const removeTransformDraft = useCurveStore((state) => state.removeTransformDraft);
-  const moveTransformDraft = useCurveStore((state) => state.moveTransformDraft);
-  const clearTransformDrafts = useCurveStore((state) => state.clearTransformDrafts);
-  const applyTransformPipeline = useCurveStore((state) => state.applyTransformPipeline);
-  const exportSelectedCurves = useCurveStore((state) => state.exportSelectedCurves);
-
-  const [type, setType] = useState<TransformType>("scale");
+export function CurveTransformPanel({ sheet }: CurveTransformPanelProps) {
+  const updateCurveSheet = useProjectStore((state) => state.updateCurveSheet);
+  const exportSelectedData = useProjectStore((state) => state.exportSelectedData);
+  const [type, setType] = useState<CurveTransformType>("scale");
   const activeCurve = useMemo(
-    () => curves.find((curve) => curve.id === activeCurveId),
-    [activeCurveId, curves],
+    () => sheet.curves.find((curve) => curve.id === sheet.activeCurveId),
+    [sheet.activeCurveId, sheet.curves],
   );
-  const hasInvalidReferenceStep = transformDrafts.some((draft) => {
+  const hasInvalidReferenceStep = sheet.transformDrafts.some((draft) => {
     return draft.type === "reference_based" && !draft.params.referenceCurveId;
   });
-  const canApply = Boolean(activeCurveId) && transformDrafts.length > 0 && !hasInvalidReferenceStep;
-  const canPreview = canApply;
+  const canApply = Boolean(sheet.activeCurveId) && sheet.transformDrafts.length > 0 && !hasInvalidReferenceStep;
 
   return (
     <aside className="flex h-full min-h-0 flex-col border-l border-slate-200 bg-slate-50">
       <div className="border-b border-slate-200 px-4 py-3">
-        <h2 className="text-sm font-semibold text-slate-900">Transform Pipeline</h2>
+        <h2 className="text-sm font-semibold text-slate-900">Curve Pipeline</h2>
         <p className="mt-1 truncate text-xs text-slate-500">
           Active: {activeCurve ? activeCurve.name : "未选择"}
         </p>
-        {canPreview ? (
-          <p className="mt-1 text-xs text-sky-700">图表正在实时预览当前 Pipeline。</p>
-        ) : null}
+        {canApply ? <p className="mt-1 text-xs text-sky-700">图表正在实时预览当前 Pipeline。</p> : null}
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         <section className="space-y-3 rounded-md border border-slate-200 bg-white p-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-slate-600">选择要添加的 Transform</span>
-            <HelpHint help={transformHelp[type]} />
+            <HelpHint help={curveTransformHelp[type]} />
           </div>
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-slate-600">Transform 类型</span>
             <select
               value={type}
-              onChange={(event) => setType(event.target.value as TransformType)}
+              onChange={(event) => setType(event.target.value as CurveTransformType)}
               className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
             >
-              {transformOptions.map((option) => (
+              {curveTransformOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
             </select>
           </label>
-
-          {type === "reference_based" ? (
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-600">默认 Reference</span>
-              <select
-                value={referenceCurveId ?? ""}
-                onChange={(event) => setReferenceCurve(event.target.value || undefined)}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
-              >
-                <option value="">请选择 Reference</option>
-                {curves.map((curve) => (
-                  <option key={curve.id} value={curve.id}>
-                    {curve.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-
           <button
             type="button"
             onClick={() =>
-              addTransformDraft({
-                id: createDraftId(type),
-                type,
-                params: defaultParams(type, referenceCurveId),
-              })
+              updateCurveSheet(sheet.id, (current) => ({
+                ...current,
+                transformDrafts: [
+                  ...current.transformDrafts,
+                  createCurveTransformDraft(type, current.referenceCurveId),
+                ],
+              }))
             }
             className="w-full rounded-md bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-700"
           >
@@ -315,12 +213,11 @@ export function TransformPanel() {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-900">Pipeline Steps</h3>
-            <span className="text-xs text-slate-500">{transformDrafts.length} steps</span>
+            <span className="text-xs text-slate-500">{sheet.transformDrafts.length} steps</span>
           </div>
-
-          {transformDrafts.length ? (
+          {sheet.transformDrafts.length ? (
             <div className="space-y-2">
-              {transformDrafts.map((draft, index) => (
+              {sheet.transformDrafts.map((draft, index) => (
                 <div key={draft.id} className="space-y-3 rounded-md border border-slate-200 bg-white p-3">
                   <div className="flex items-center gap-2">
                     <span className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
@@ -329,49 +226,79 @@ export function TransformPanel() {
                     <select
                       value={draft.type}
                       onChange={(event) => {
-                        const nextType = event.target.value as TransformType;
-                        updateTransformDraft(draft.id, {
-                          type: nextType,
-                          params: defaultParams(nextType, referenceCurveId),
-                        });
+                        const nextType = event.target.value as CurveTransformType;
+                        updateCurveSheet(sheet.id, (current) => ({
+                          ...current,
+                          transformDrafts: current.transformDrafts.map((item) =>
+                            item.id === draft.id
+                              ? {
+                                  ...item,
+                                  type: nextType,
+                                  params: defaultCurveTransformParams(nextType, current.referenceCurveId),
+                                }
+                              : item,
+                          ),
+                        }));
                       }}
                       className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
                     >
-                      {transformOptions.map((option) => (
+                      {curveTransformOptions.map((option) => (
                         <option key={option.value} value={option.value}>
                           {option.label}
                         </option>
                       ))}
                     </select>
-                    <HelpHint help={transformHelp[draft.type]} />
+                    <HelpHint help={curveTransformHelp[draft.type]} />
                   </div>
-
-                  <TransformParamsEditor
+                  <CurveParamsEditor
                     draft={draft}
-                    curves={curves}
-                    onChange={(params) => updateTransformDraft(draft.id, { params })}
+                    sheet={sheet}
+                    onChange={(params) =>
+                      updateCurveSheet(sheet.id, (current) => ({
+                        ...current,
+                        transformDrafts: current.transformDrafts.map((item) =>
+                          item.id === draft.id ? { ...item, params } : item,
+                        ),
+                      }))
+                    }
                   />
-
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
                       disabled={index === 0}
-                      onClick={() => moveTransformDraft(draft.id, "up")}
+                      onClick={() =>
+                        updateCurveSheet(sheet.id, (current) => {
+                          const drafts = [...current.transformDrafts];
+                          [drafts[index - 1], drafts[index]] = [drafts[index], drafts[index - 1]];
+                          return { ...current, transformDrafts: drafts };
+                        })
+                      }
                       className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                     >
                       Up
                     </button>
                     <button
                       type="button"
-                      disabled={index === transformDrafts.length - 1}
-                      onClick={() => moveTransformDraft(draft.id, "down")}
+                      disabled={index === sheet.transformDrafts.length - 1}
+                      onClick={() =>
+                        updateCurveSheet(sheet.id, (current) => {
+                          const drafts = [...current.transformDrafts];
+                          [drafts[index], drafts[index + 1]] = [drafts[index + 1], drafts[index]];
+                          return { ...current, transformDrafts: drafts };
+                        })
+                      }
                       className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                     >
                       Down
                     </button>
                     <button
                       type="button"
-                      onClick={() => removeTransformDraft(draft.id)}
+                      onClick={() =>
+                        updateCurveSheet(sheet.id, (current) => ({
+                          ...current,
+                          transformDrafts: current.transformDrafts.filter((item) => item.id !== draft.id),
+                        }))
+                      }
                       className="rounded-md border border-red-200 bg-white px-2 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-50"
                     >
                       Delete
@@ -397,7 +324,7 @@ export function TransformPanel() {
         <button
           type="button"
           disabled={!canApply}
-          onClick={applyTransformPipeline}
+          onClick={() => updateCurveSheet(sheet.id, applyCurvePipeline)}
           className="w-full rounded-md bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           Apply Pipeline
@@ -405,16 +332,16 @@ export function TransformPanel() {
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            disabled={!transformDrafts.length}
-            onClick={clearTransformDrafts}
+            disabled={!sheet.transformDrafts.length}
+            onClick={() => updateCurveSheet(sheet.id, (current) => ({ ...current, transformDrafts: [] }))}
             className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
           >
             Clear Steps
           </button>
           <button
             type="button"
-            disabled={!curves.length}
-            onClick={exportSelectedCurves}
+            disabled={!sheet.curves.length}
+            onClick={exportSelectedData}
             className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
           >
             Export Selected

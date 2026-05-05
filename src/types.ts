@@ -1,51 +1,20 @@
-export type Curve = {
-  id: string;
-  name: string;
-  group?: string;
-  x: Array<number | string>;
-  y: number[];
-  meta?: CurveMeta;
-};
-
-export type CurveMeta = {
-  kind?: "raw" | "generated";
-  sourceCurveId?: string;
-  transforms?: Transform[];
-  createdAt?: string;
-  style?: {
-    lineType?: "solid" | "dashed";
-  };
-  [key: string]: any;
-};
-
-export type TransformType =
-  | "scale"
-  | "offset"
-  | "trend"
-  | "noise"
-  | "smooth"
-  | "reference_based";
-
-export type Transform = {
-  id: string;
-  curveId: string;
-  type: TransformType;
-  params: Record<string, any>;
-};
-
-export type TransformDraft = {
-  id: string;
-  type: TransformType;
-  params: Record<string, any>;
-};
-
-export type DataMockProject = {
-  version: 1;
-  name: string;
-  curves: Curve[];
-  selectedCurveIds: string[];
-  activeCurveId?: string;
-  referenceCurveId?: string;
-  transformDrafts: TransformDraft[];
-  savedAt: string;
-};
+export type {
+  Curve,
+  CurveMeta,
+  CurveSheet,
+  CurveTransform as Transform,
+  CurveTransform,
+  CurveTransformDraft as TransformDraft,
+  CurveTransformDraft,
+  CurveTransformType as TransformType,
+  CurveTransformType,
+} from "./sheets/curve/types";
+export type {
+  ScalarMetric,
+  ScalarMetricMeta,
+  ScalarSheet,
+  ScalarTransform,
+  ScalarTransformDraft,
+  ScalarTransformType,
+} from "./sheets/scalar/types";
+export type { DataMockProject, LegacyDataMockProjectV1, Sheet } from "./project/types";

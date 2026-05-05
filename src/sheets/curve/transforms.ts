@@ -1,12 +1,9 @@
-import type { Curve, Transform, TransformDraft } from "../types";
-import { createSeededRandom, randomNormal } from "./random";
+import { asNumber, average } from "../../core/math";
+import { createId } from "../../core/id";
+import { createSeededRandom, randomNormal } from "../../core/random";
+import type { Curve, CurveTransform, CurveTransformDraft } from "./types";
 
 type CurveLookup = (curveId: string) => Curve | undefined;
-
-function asNumber(value: unknown, fallback: number): number {
-  const parsed = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
 
 function normalizeDirection(value: unknown): "up" | "down" {
   return value === "down" ? "down" : "up";
@@ -16,12 +13,7 @@ function normalizedIndex(index: number, length: number): number {
   return length <= 1 ? 0 : index / (length - 1);
 }
 
-function average(values: number[]): number {
-  if (values.length === 0) return 0;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function normalizeParams(transform: Pick<Transform, "type" | "params">): Record<string, unknown> {
+function normalizeParams(transform: Pick<CurveTransform, "type" | "params">): Record<string, unknown> {
   const params = transform.params;
 
   if (transform.type === "scale") {
@@ -129,9 +121,9 @@ function applyReferenceBased(
   };
 }
 
-export function applySingleTransform(
+export function applySingleCurveTransform(
   curve: Curve,
-  transform: Transform,
+  transform: CurveTransform,
   lookupCurve: CurveLookup,
 ): Curve {
   if (transform.type === "reference_based") {
@@ -155,7 +147,7 @@ export function applySingleTransform(
   };
 }
 
-function toTransform(sourceCurveId: string, draft: TransformDraft): Transform {
+function toTransform(sourceCurveId: string, draft: CurveTransformDraft): CurveTransform {
   return {
     id: draft.id,
     curveId: sourceCurveId,
@@ -164,28 +156,28 @@ function toTransform(sourceCurveId: string, draft: TransformDraft): Transform {
   };
 }
 
-export function applyTransformPipeline(
+export function applyCurveTransformPipeline(
   sourceCurve: Curve,
-  drafts: TransformDraft[],
+  drafts: CurveTransformDraft[],
   lookupCurve: CurveLookup,
 ): Curve {
   return drafts.reduce<Curve>((current, draft) => {
-    return applySingleTransform(current, toTransform(sourceCurve.id, draft), lookupCurve);
+    return applySingleCurveTransform(current, toTransform(sourceCurve.id, draft), lookupCurve);
   }, sourceCurve);
 }
 
 export function createGeneratedCurve(
   sourceCurve: Curve,
-  drafts: TransformDraft[],
+  drafts: CurveTransformDraft[],
   lookupCurve: CurveLookup,
   index: number,
 ): Curve {
-  const transformed = applyTransformPipeline(sourceCurve, drafts, lookupCurve);
+  const transformed = applyCurveTransformPipeline(sourceCurve, drafts, lookupCurve);
   const transforms = drafts.map((draft) => toTransform(sourceCurve.id, draft));
 
   return {
     ...transformed,
-    id: `generated_${sourceCurve.id}_${Date.now()}_${index}`,
+    id: createId(`generated_${sourceCurve.id}_${index}`),
     name: `${sourceCurve.name} Mock ${index}`,
     meta: {
       kind: "generated",

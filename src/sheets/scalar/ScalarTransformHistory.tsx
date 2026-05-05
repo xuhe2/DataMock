@@ -1,15 +1,15 @@
-import { useCurveStore } from "../store/useCurveStore";
-import type { Transform, TransformDraft } from "../types";
+import type { ScalarSheet, ScalarTransform, ScalarTransformDraft } from "./types";
 
-type HistoryItem = Transform | TransformDraft;
+type HistoryItem = ScalarTransform | ScalarTransformDraft;
 
-export function TransformHistory() {
-  const activeCurveId = useCurveStore((state) => state.activeCurveId);
-  const curves = useCurveStore((state) => state.curves);
-  const transformDrafts = useCurveStore((state) => state.transformDrafts);
-  const activeCurve = curves.find((curve) => curve.id === activeCurveId);
-  const savedTransforms = activeCurve?.meta?.transforms ?? [];
-  const items: HistoryItem[] = savedTransforms.length ? savedTransforms : transformDrafts;
+type ScalarTransformHistoryProps = {
+  sheet: ScalarSheet;
+};
+
+export function ScalarTransformHistory({ sheet }: ScalarTransformHistoryProps) {
+  const activeMetric = sheet.metrics.find((metric) => metric.id === sheet.activeMetricId);
+  const savedTransforms = activeMetric?.meta?.transforms ?? [];
+  const items: HistoryItem[] = savedTransforms.length ? savedTransforms : sheet.transformDrafts;
   const title = savedTransforms.length ? "Generated History" : "Draft Pipeline";
 
   return (

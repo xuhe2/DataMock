@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { downloadProject, openProjectFile, saveProjectFile, supportsFileSystemAccess } from "../core/fileSystem";
 import { parseProject } from "../core/parsers";
-import { useCurveStore } from "../store/useCurveStore";
+import { useProjectStore } from "../store/useProjectStore";
 
 type FileHandle = Awaited<ReturnType<typeof saveProjectFile>>;
 
@@ -10,10 +10,10 @@ function projectNameFromFilename(filename: string): string {
 }
 
 export function ProjectControls() {
-  const projectName = useCurveStore((state) => state.projectName);
-  const newProject = useCurveStore((state) => state.newProject);
-  const loadProject = useCurveStore((state) => state.loadProject);
-  const getProjectSnapshot = useCurveStore((state) => state.getProjectSnapshot);
+  const projectName = useProjectStore((state) => state.project.name);
+  const newProject = useProjectStore((state) => state.newProject);
+  const loadProject = useProjectStore((state) => state.loadProject);
+  const getProjectSnapshot = useProjectStore((state) => state.getProjectSnapshot);
   const [fileHandle, setFileHandle] = useState<FileHandle>();
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();

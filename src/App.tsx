@@ -1,9 +1,9 @@
-import { CurveChart } from "./components/CurveChart";
-import { CurveList } from "./components/CurveList";
+import { ActiveDataList } from "./components/ActiveDataList";
+import { ActiveSheetView } from "./components/ActiveSheetView";
+import { ActiveTransformPanel } from "./components/ActiveTransformPanel";
 import { DataImporter } from "./components/DataImporter";
 import { ProjectControls } from "./components/ProjectControls";
-import { TransformHistory } from "./components/TransformHistory";
-import { TransformPanel } from "./components/TransformPanel";
+import { SheetTabs } from "./components/SheetTabs";
 
 export default function App() {
   return (
@@ -12,17 +12,17 @@ export default function App() {
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
           <ProjectControls />
           <DataImporter />
-          <CurveList />
+          <ActiveDataList />
         </div>
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col bg-white">
-        <CurveChart />
-        <TransformHistory />
+        <SheetTabs />
+        <ActiveSheetView />
       </main>
 
       <div className="w-[320px] shrink-0">
-        <TransformPanel />
+        <ActiveTransformPanel />
       </div>
     </div>
   );

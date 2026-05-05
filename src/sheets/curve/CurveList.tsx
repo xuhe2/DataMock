@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useCurveStore } from "../store/useCurveStore";
-import type { Curve } from "../types";
+import { useProjectStore } from "../../store/useProjectStore";
+import type { Curve, CurveSheet } from "./types";
 
 type CurveRowProps = {
   curve: Curve;
@@ -53,11 +53,6 @@ function CurveRow({
     setIsEditing(false);
   };
 
-  const cancelName = () => {
-    setDraftName(curve.name);
-    setIsEditing(false);
-  };
-
   return (
     <div
       className={[
@@ -80,13 +75,8 @@ function CurveRow({
               onChange={(event) => setDraftName(event.target.value)}
               onBlur={saveName}
               onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  saveName();
-                }
-
-                if (event.key === "Escape") {
-                  cancelName();
-                }
+                if (event.key === "Enter") saveName();
+                if (event.key === "Escape") setIsEditing(false);
               }}
               className="block w-full rounded border border-sky-300 bg-white px-1.5 py-0.5 text-sm font-medium text-slate-900 outline-none ring-2 ring-sky-100"
             />
@@ -146,41 +136,67 @@ function CurveRow({
   );
 }
 
-export function CurveList() {
-  const curves = useCurveStore((state) => state.curves);
-  const selectedCurveIds = useCurveStore((state) => state.selectedCurveIds);
-  const activeCurveId = useCurveStore((state) => state.activeCurveId);
-  const referenceCurveId = useCurveStore((state) => state.referenceCurveId);
-  const toggleCurveVisible = useCurveStore((state) => state.toggleCurveVisible);
-  const setActiveCurve = useCurveStore((state) => state.setActiveCurve);
-  const setReferenceCurve = useCurveStore((state) => state.setReferenceCurve);
-  const renameCurve = useCurveStore((state) => state.renameCurve);
-  const deleteCurve = useCurveStore((state) => state.deleteCurve);
-  const generatedCount = curves.filter((curve) => curve.meta?.kind === "generated").length;
+type CurveListProps = {
+  sheet: CurveSheet;
+};
+
+export function CurveList({ sheet }: CurveListProps) {
+  const updateCurveSheet = useProjectStore((state) => state.updateCurveSheet);
+  const generatedCount = sheet.curves.filter((curve) => curve.meta?.kind === "generated").length;
 
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-900">曲线列表</h2>
         <span className="text-xs text-slate-500">
-          {curves.length - generatedCount} Raw / {generatedCount} Generated
+          {sheet.curves.length - generatedCount} Raw / {generatedCount} Generated
         </span>
       </div>
 
       <div className="space-y-2">
-        {curves.map((curve) => (
+        {sheet.curves.map((curve) => (
           <CurveRow
             key={curve.id}
             curve={curve}
-            checked={selectedCurveIds.includes(curve.id)}
-            isActive={curve.id === activeCurveId}
-            isReference={curve.id === referenceCurveId}
-            canDelete={curves.length > 1}
-            onToggle={() => toggleCurveVisible(curve.id)}
-            onSetActive={() => setActiveCurve(curve.id)}
-            onSetReference={() => setReferenceCurve(curve.id)}
-            onRename={(name) => renameCurve(curve.id, name)}
-            onDelete={() => deleteCurve(curve.id)}
+            checked={sheet.selectedCurveIds.includes(curve.id)}
+            isActive={curve.id === sheet.activeCurveId}
+            isReference={curve.id === sheet.referenceCurveId}
+            canDelete={sheet.curves.length > 1}
+            onToggle={() =>
+              updateCurveSheet(sheet.id, (current) => {
+                const selected = current.selectedCurveIds.includes(curve.id);
+                return {
+                  ...current,
+                  selectedCurveIds: selected
+                    ? current.selectedCurveIds.filter((id) => id !== curve.id)
+                    : [...current.selectedCurveIds, curve.id],
+                };
+              })
+            }
+            onSetActive={() => updateCurveSheet(sheet.id, (current) => ({ ...current, activeCurveId: curve.id }))}
+            onSetReference={() =>
+              updateCurveSheet(sheet.id, (current) => ({ ...current, referenceCurveId: curve.id }))
+            }
+            onRename={(name) =>
+              updateCurveSheet(sheet.id, (current) => ({
+                ...current,
+                curves: current.curves.map((item) =>
+                  item.id === curve.id && name.trim() ? { ...item, name: name.trim() } : item,
+                ),
+              }))
+            }
+            onDelete={() =>
+              updateCurveSheet(sheet.id, (current) => {
+                const curves = current.curves.filter((item) => item.id !== curve.id);
+                return {
+                  ...current,
+                  curves,
+                  selectedCurveIds: current.selectedCurveIds.filter((id) => id !== curve.id),
+                  activeCurveId: current.activeCurveId === curve.id ? curves[0]?.id : current.activeCurveId,
+                  referenceCurveId: current.referenceCurveId === curve.id ? undefined : current.referenceCurveId,
+                };
+              })
+            }
           />
         ))}
       </div>
