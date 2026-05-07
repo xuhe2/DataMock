@@ -33,11 +33,35 @@ npm install
 npm run dev
 ```
 
-构建生产包：
+构建 Web 生产包：
 
 ```bash
 npm run build
 ```
+
+## 本地二进制运行
+
+项目提供一个 Go + embed 的本地静态文件服务器。它会把 Vite 构建产物内嵌进 Go 二进制，启动后监听 `127.0.0.1` 的可用端口并自动打开浏览器。
+
+构建本地应用：
+
+```bash
+npm run build:app
+```
+
+运行：
+
+```bash
+./dist-app/datamock
+```
+
+终端会输出类似：
+
+```txt
+DataMock is running at http://127.0.0.1:39841
+```
+
+用户拿到对应平台的 `datamock` 二进制后，可以直接运行，不需要自己启动 Vite 或配置文件服务器。
 
 ## Project 文件
 
