@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { EditableGroupTag } from "../../components/EditableGroupTag";
+import { groupItems } from "../../core/grouping";
 import { useProjectStore } from "../../store/useProjectStore";
 import type { Curve, CurveSheet } from "./types";
 
@@ -12,6 +14,7 @@ type CurveRowProps = {
   onSetActive: () => void;
   onSetReference: () => void;
   onRename: (name: string) => void;
+  onChangeGroup: (group: string | undefined) => void;
   onDelete: () => void;
 };
 
@@ -29,6 +32,7 @@ function CurveRow({
   onSetActive,
   onSetReference,
   onRename,
+  onChangeGroup,
   onDelete,
 }: CurveRowProps) {
   const isGenerated = curve.meta?.kind === "generated";
@@ -103,6 +107,7 @@ function CurveRow({
         >
           {curveKindLabel(curve)}
         </span>
+        <EditableGroupTag group={curve.group} onChange={onChangeGroup} />
         <button
           type="button"
           onClick={onSetActive}
@@ -143,6 +148,7 @@ type CurveListProps = {
 export function CurveList({ sheet }: CurveListProps) {
   const updateCurveSheet = useProjectStore((state) => state.updateCurveSheet);
   const generatedCount = sheet.curves.filter((curve) => curve.meta?.kind === "generated").length;
+  const groupedCurves = groupItems(sheet.curves);
 
   return (
     <section className="space-y-3">
@@ -153,51 +159,67 @@ export function CurveList({ sheet }: CurveListProps) {
         </span>
       </div>
 
-      <div className="space-y-2">
-        {sheet.curves.map((curve) => (
-          <CurveRow
-            key={curve.id}
-            curve={curve}
-            checked={sheet.selectedCurveIds.includes(curve.id)}
-            isActive={curve.id === sheet.activeCurveId}
-            isReference={curve.id === sheet.referenceCurveId}
-            canDelete={sheet.curves.length > 1}
-            onToggle={() =>
-              updateCurveSheet(sheet.id, (current) => {
-                const selected = current.selectedCurveIds.includes(curve.id);
-                return {
-                  ...current,
-                  selectedCurveIds: selected
-                    ? current.selectedCurveIds.filter((id) => id !== curve.id)
-                    : [...current.selectedCurveIds, curve.id],
-                };
-              })
-            }
-            onSetActive={() => updateCurveSheet(sheet.id, (current) => ({ ...current, activeCurveId: curve.id }))}
-            onSetReference={() =>
-              updateCurveSheet(sheet.id, (current) => ({ ...current, referenceCurveId: curve.id }))
-            }
-            onRename={(name) =>
-              updateCurveSheet(sheet.id, (current) => ({
-                ...current,
-                curves: current.curves.map((item) =>
-                  item.id === curve.id && name.trim() ? { ...item, name: name.trim() } : item,
-                ),
-              }))
-            }
-            onDelete={() =>
-              updateCurveSheet(sheet.id, (current) => {
-                const curves = current.curves.filter((item) => item.id !== curve.id);
-                return {
-                  ...current,
-                  curves,
-                  selectedCurveIds: current.selectedCurveIds.filter((id) => id !== curve.id),
-                  activeCurveId: current.activeCurveId === curve.id ? curves[0]?.id : current.activeCurveId,
-                  referenceCurveId: current.referenceCurveId === curve.id ? undefined : current.referenceCurveId,
-                };
-              })
-            }
-          />
+      <div className="space-y-3">
+        {groupedCurves.map((group) => (
+          <div key={group.name} className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="truncate text-xs font-semibold text-slate-700">{group.name}</h3>
+              <span className="text-[11px] text-slate-400">{group.items.length}</span>
+            </div>
+            {group.items.map((curve) => (
+              <CurveRow
+                key={curve.id}
+                curve={curve}
+                checked={sheet.selectedCurveIds.includes(curve.id)}
+                isActive={curve.id === sheet.activeCurveId}
+                isReference={curve.id === sheet.referenceCurveId}
+                canDelete={sheet.curves.length > 1}
+                onToggle={() =>
+                  updateCurveSheet(sheet.id, (current) => {
+                    const selected = current.selectedCurveIds.includes(curve.id);
+                    return {
+                      ...current,
+                      selectedCurveIds: selected
+                        ? current.selectedCurveIds.filter((id) => id !== curve.id)
+                        : [...current.selectedCurveIds, curve.id],
+                    };
+                  })
+                }
+                onSetActive={() => updateCurveSheet(sheet.id, (current) => ({ ...current, activeCurveId: curve.id }))}
+                onSetReference={() =>
+                  updateCurveSheet(sheet.id, (current) => ({ ...current, referenceCurveId: curve.id }))
+                }
+                onRename={(name) =>
+                  updateCurveSheet(sheet.id, (current) => ({
+                    ...current,
+                    curves: current.curves.map((item) =>
+                      item.id === curve.id && name.trim() ? { ...item, name: name.trim() } : item,
+                    ),
+                  }))
+                }
+                onChangeGroup={(groupName) =>
+                  updateCurveSheet(sheet.id, (current) => ({
+                    ...current,
+                    curves: current.curves.map((item) =>
+                      item.id === curve.id ? { ...item, group: groupName } : item,
+                    ),
+                  }))
+                }
+                onDelete={() =>
+                  updateCurveSheet(sheet.id, (current) => {
+                    const curves = current.curves.filter((item) => item.id !== curve.id);
+                    return {
+                      ...current,
+                      curves,
+                      selectedCurveIds: current.selectedCurveIds.filter((id) => id !== curve.id),
+                      activeCurveId: current.activeCurveId === curve.id ? curves[0]?.id : current.activeCurveId,
+                      referenceCurveId: current.referenceCurveId === curve.id ? undefined : current.referenceCurveId,
+                    };
+                  })
+                }
+              />
+            ))}
+          </div>
         ))}
       </div>
     </section>
