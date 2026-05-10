@@ -41,7 +41,7 @@ npm run build
 
 ## 本地二进制运行
 
-项目提供一个 Go + embed 的本地静态文件服务器。它会把 Vite 构建产物内嵌进 Go 二进制，启动后监听 `127.0.0.1` 的可用端口并自动打开浏览器。
+项目提供一个 Go + embed 的本地静态文件服务器。它会把 Vite 构建产物内嵌进 Go 二进制，启动后监听 `127.0.0.1:5179` 并自动打开浏览器。如果默认端口被占用，会自动回退到随机可用端口。
 
 构建本地应用：
 
@@ -55,10 +55,28 @@ npm run build:app
 ./dist-app/datamock
 ```
 
+指定端口：
+
+```bash
+./dist-app/datamock --port 5180
+```
+
+使用随机端口：
+
+```bash
+./dist-app/datamock --port 0
+```
+
+不自动打开浏览器：
+
+```bash
+./dist-app/datamock --no-open
+```
+
 终端会输出类似：
 
 ```txt
-DataMock is running at http://127.0.0.1:39841
+DataMock is running at http://127.0.0.1:5179
 ```
 
 用户拿到对应平台的 `datamock` 二进制后，可以直接运行，不需要自己启动 Vite 或配置文件服务器。
@@ -187,7 +205,7 @@ Curve Sheet:
 - Scale: `newY = y * factor`
 - Offset: `newY = y + value`
 - Trend: 根据归一化索引按 up/down 添加趋势
-- Noise: 使用 seeded random 生成可复现正态噪声
+- Noise: 支持 seeded random 生成可复现正态噪声，也支持 randomize 模式生成每次不同的噪声
 - Smooth: 使用移动平均
 - Reference Based: 当前曲线和 reference curve 混合后做幅度调整和趋势调整
 
@@ -195,7 +213,7 @@ Scalar Sheet:
 
 - Scale: `newValue = value * factor`
 - Offset: `newValue = value + offset`
-- Noise: 使用 seeded random 生成可复现正态噪声
+- Noise: 支持 seeded random 生成可复现正态噪声，也支持 randomize 模式生成每次不同的噪声
 - Reference Based: 当前指标和 reference metric 混合后做幅度调整
 
 右侧面板使用组合 Pipeline：

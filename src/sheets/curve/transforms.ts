@@ -32,9 +32,12 @@ function normalizeParams(transform: Pick<CurveTransform, "type" | "params">): Re
   }
 
   if (transform.type === "noise") {
+    const randomize = params.randomize === true;
+
     return {
       sigma: Math.max(0, asNumber(params.sigma, 0)),
-      seed: Math.trunc(asNumber(params.seed, 1)),
+      randomize,
+      seed: randomize ? undefined : Math.trunc(asNumber(params.seed, 1)),
     };
   }
 
@@ -73,8 +76,9 @@ function applyTrend(y: number[], params: Record<string, unknown>): number[] {
 
 function applyNoise(y: number[], params: Record<string, unknown>): number[] {
   const sigma = Math.max(0, asNumber(params.sigma, 0));
-  const seed = Math.trunc(asNumber(params.seed, 1));
-  const random = createSeededRandom(seed);
+  const random = params.randomize === true
+    ? Math.random
+    : createSeededRandom(Math.trunc(asNumber(params.seed, 1)));
   return y.map((value) => value + randomNormal(random, 0, sigma));
 }
 

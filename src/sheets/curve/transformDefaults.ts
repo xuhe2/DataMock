@@ -17,7 +17,7 @@ export function defaultCurveTransformParams(
   if (type === "scale") return { factor: 1.05 };
   if (type === "offset") return { value: 0.02 };
   if (type === "trend") return { strength: 0.05, direction: "up" };
-  if (type === "noise") return { sigma: 0.01, seed: 42 };
+  if (type === "noise") return { sigma: 0.01, randomize: false, seed: 42 };
   if (type === "smooth") return { windowSize: 3 };
 
   return {

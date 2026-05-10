@@ -31,7 +31,8 @@ export const curveTransformHelp: Record<CurveTransformType, TransformHelp> = {
     formula: "newY = y + randomNormal(0, sigma)",
     params: [
       { name: "sigma", description: "噪声标准差。越大，波动越明显。" },
-      { name: "seed", description: "随机种子。同一个 seed 会生成相同的噪声结果。" },
+      { name: "randomize", description: "启用后每次计算都使用非确定随机数，结果不会固定。" },
+      { name: "seed", description: "随机种子。关闭 randomize 时，同一个 seed 会生成相同的噪声结果。" },
     ],
   },
   smooth: {

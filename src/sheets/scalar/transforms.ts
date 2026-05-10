@@ -17,9 +17,12 @@ function normalizeParams(transform: Pick<ScalarTransform, "type" | "params">): R
   }
 
   if (transform.type === "noise") {
+    const randomize = params.randomize === true;
+
     return {
       sigma: Math.max(0, asNumber(params.sigma, 0)),
-      seed: Math.trunc(asNumber(params.seed, 1)),
+      randomize,
+      seed: randomize ? undefined : Math.trunc(asNumber(params.seed, 1)),
     };
   }
 
@@ -67,8 +70,9 @@ export function applySingleScalarTransform(
 
   if (transform.type === "noise") {
     const sigma = Math.max(0, asNumber(transform.params.sigma, 0));
-    const seed = Math.trunc(asNumber(transform.params.seed, 1));
-    const random = createSeededRandom(seed);
+    const random = transform.params.randomize === true
+      ? Math.random
+      : createSeededRandom(Math.trunc(asNumber(transform.params.seed, 1)));
     return { ...metric, value: metric.value + randomNormal(random, 0, sigma) };
   }
 

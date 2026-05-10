@@ -55,19 +55,35 @@ function ScalarParamsEditor({ draft, sheet, onChange }: ParamsEditorProps) {
 
   if (draft.type === "noise") {
     return (
-      <div className="grid grid-cols-2 gap-2">
-        <NumberInput
-          label="sigma"
-          value={String(params.sigma ?? 0)}
-          min="0"
-          onChange={(sigma) => onChange({ ...params, sigma })}
-        />
-        <NumberInput
-          label="seed"
-          value={String(params.seed ?? 1)}
-          step="1"
-          onChange={(seed) => onChange({ ...params, seed })}
-        />
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <NumberInput
+            label="sigma"
+            value={String(params.sigma ?? 0)}
+            min="0"
+            onChange={(sigma) => onChange({ ...params, sigma })}
+          />
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-slate-600">seed</span>
+            <input
+              type="number"
+              value={String(params.seed ?? "")}
+              step="1"
+              disabled={params.randomize === true}
+              onChange={(event) => onChange({ ...params, seed: event.target.value })}
+              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            />
+          </label>
+        </div>
+        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+          <input
+            type="checkbox"
+            checked={params.randomize === true}
+            onChange={(event) => onChange({ ...params, randomize: event.target.checked })}
+            className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+          />
+          Use random seed each time
+        </label>
       </div>
     );
   }
